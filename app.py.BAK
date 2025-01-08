@@ -1,0 +1,61 @@
+import streamlit as st
+from PyPDF2 import PdfReader, PdfWriter
+from pdf2image import convert_from_path
+from PIL import Image
+import random
+import io
+
+# Streamlit App Title
+st.title("PDF to JPG Converter and Saver")
+
+# File Uploader for PDF
+uploaded_file = st.file_uploader("Upload a PDF file", type="pdf")
+
+if uploaded_file:
+    # Read the uploaded PDF
+    reader = PdfReader(uploaded_file)
+    total_pages = len(reader.pages)
+
+    if total_pages < 2:
+        st.error("Please upload a PDF with at least 2 pages.")
+    else:
+        st.success(f"PDF with {total_pages} pages uploaded successfully!")
+
+        # Select a random page to leave unchanged
+        random_page = random.randint(0, total_pages - 1)
+        st.info(f"Page {random_page + 1} will remain unchanged.")
+
+        # Output PDF writer
+        output_writer = PdfWriter()
+
+        for page_index in range(total_pages):
+            if page_index == random_page:
+                # Add the unchanged page to the output
+                output_writer.add_page(reader.pages[page_index])
+            else:
+                # Convert the page to an image
+                images = convert_from_path(uploaded_file, first_page=page_index + 1, last_page=page_index + 1)
+
+                # Convert the first image to RGB and save to a BytesIO buffer
+                image_buffer = io.BytesIO()
+                images[0].convert("RGB").save(image_buffer, format="JPEG")
+                image_buffer.seek(0)
+
+                # Create a new PDF page with the image
+                image_page = PdfReader(io.BytesIO(image_buffer.read())).pages[0]
+                output_writer.add_page(image_page)
+
+        # Save the output PDF to a BytesIO buffer
+        output_buffer = io.BytesIO()
+        output_writer.write(output_buffer)
+        output_buffer.seek(0)
+
+        # Allow user to download the resulting PDF
+        st.download_button(
+            label="Download the Converted PDF",
+            data=output_buffer,
+            file_name="converted_output.pdf",
+            mime="application/pdf"
+        )
+
+        st.success("PDF processing complete! The file is ready for download.")
